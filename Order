@@ -1,0 +1,167 @@
+package com.selenium;
+
+import org.junit.Assert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.firefox.FirefoxDriver;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertTrue;
+import static org.openqa.selenium.By.cssSelector;
+import static org.openqa.selenium.By.id;
+import static org.openqa.selenium.By.xpath;
+
+public class Main {
+
+
+    private static String TESTURL = "http://skuid-qa-eval.force.com/WebOrderScreen";
+    private static String DRILL_ADDLOC = "//html/body/div[1]/div[1]/div[2]/div[2]/div/div[1]/div[3]/div[2]/div[1]/div[2]/div[3]/table/tbody/tr[1]/td[1]/div[1]/div/i";
+    private static String WRENCH_ADDLOC = "//html/body/div[1]/div[1]/div[2]/div[2]/div/div[1]/div[3]/div[2]/div[1]/div[2]/div[3]/table/tbody/tr[2]/td[1]/div[1]/div/i";
+    private static String HAMMER_ADDLOC = "//html/body/div[1]/div[1]/div[2]/div[2]/div/div[1]/div[3]/div[2]/div[1]/div[2]/div[3]/table/tbody/tr[3]/td[1]/div[1]/div/i";
+    private static String TOTAL_MAX;
+
+    private static String CREDIT_CARD = "1616939345450707";
+    private static String EXPIRATION_DATE = "1017";
+    private static String SECURITY_CODE = "999";
+
+
+    public static WebDriver driver;
+
+    public Main() {
+        TOTAL_MAX = "126.00";
+    }
+
+
+    public static void main(String[] args) throws InterruptedException {
+
+                System.setProperty("webdriver.gecko.driver", "C:\\Users\\todd.elwood\\Downloads\\geckodriver-v0.18.0-win64\\geckodriver.exe");
+                // Start browser
+                driver = new FirefoxDriver();
+
+                // Maximize the window
+                driver.manage().window().maximize();
+                WebElement link;
+                // Navigate to the URL
+
+                driver.navigate().to(TESTURL);
+                driver.manage().timeouts().implicitlyWait(15, TimeUnit.SECONDS);
+
+                AddToCart(DRILL_ADDLOC);
+                AddToCart(WRENCH_ADDLOC);
+                AddToCart(HAMMER_ADDLOC);
+
+                link = driver.findElement(cssSelector("td[class='nx-summary'][style='']"));
+                String TempCost = link.getText();
+                double OriginalTotalCost = Double.parseDouble(TempCost.replaceAll("[^0-9.]", ""));
+                //System.out.println(OriginalTotalCost + "-Value for total cost ");
+
+
+                assertTrue("Drill has successfully added to Add Cart", VerifyTextOnScrn("Drill",2));
+                assertTrue("Wrench has successfully added to Add Cart", VerifyTextOnScrn("Wrench",2));
+                assertTrue("Hammer has successfully added to Add Cart", VerifyTextOnScrn("Hammer",2));
+
+
+                //Payment Information Page
+                link = driver.findElement(id("nav-payment-info"));
+                link.click();
+
+                Thread.sleep(1000);
+                //Process Customer Data
+                ProcessInformation(CREDIT_CARD,EXPIRATION_DATE,SECURITY_CODE);
+
+                link = driver.findElement(id("nav-process-payment"));
+                link.click();
+
+                Thread.sleep(1000);
+
+                //Double targetValue = 125.00;
+                try {
+                    link = driver.findElement(cssSelector("div[data-uid='197']"));
+                    String sourceValue=link.getText();
+                    double ClosingTotalCost = Double.parseDouble(sourceValue.replaceAll("[^0-9.]", ""));
+                    System.out.println("Value is " + ClosingTotalCost);
+                    if (OriginalTotalCost != ClosingTotalCost) {
+                        Assert.fail("Expected Total Value " + ClosingTotalCost + " displayed is different from expected Target Value " + OriginalTotalCost);
+                    }
+                }
+                catch(Exception e){
+                    System.out.println("Total Cost failed... " + e);
+                }
+
+                Thread.sleep(1000);
+                link = driver.findElement(cssSelector("div[id='nav-start-over']"));
+                link.click();
+
+                Thread.sleep(1000);
+                link = driver.findElement(id("nav-process-payment"));
+                link.click();
+
+    }
+
+
+    public static boolean VerifyTextOnScrn(String cart_item, int total) {
+
+        WebElement body = driver.findElement(By.tagName("body"));
+        String bodyText = body.getText();
+        System.out.println(bodyText);
+
+        int count = 0;
+        while (bodyText.contains(cart_item)){
+            count++;
+            bodyText = bodyText.substring(bodyText.indexOf(cart_item) + cart_item.length());
+        }
+        System.out.println("Total " + cart_item + " found on page is " + count);
+        return (total == count) ? true : false;
+    }
+
+
+    public static void ProcessInformation(String credcard, String expiredate, String securecode) {
+
+        WebElement link;
+
+        try {
+
+            WebElement cred = driver.findElement(By.xpath("//div[@data-uid='55']//input['not(text())']"));
+            cred.sendKeys(credcard);
+
+            WebElement expire = driver.findElement(By.xpath("//div[@data-uid='56']//input['not(text())']"));
+            expire.sendKeys(expiredate);
+
+            WebElement secure = driver.findElement(By.xpath("//div[@data-uid='57']//input['not(text())']"));
+            secure.sendKeys(securecode);
+
+        }
+            catch(Exception e){
+                System.out.println("Failure: ProcessInformation method " + e);
+        }
+
+    }
+
+
+    private static boolean isTextPresent(String total){
+        try{
+            boolean b = driver.getPageSource().contains(total);
+            return b;
+        }
+        catch(Exception e){
+            return false;
+        }
+    }
+
+    public static void AddToCart(String buying) {
+
+        String newBuy = buying;
+        WebElement buy;
+
+        try {
+            buy = driver.findElement(By.xpath(newBuy));
+            buy.click();
+        }
+        catch(Exception e){
+            System.out.println("Failure: AddToCart method " + e);
+        }
+
+    }
+}
